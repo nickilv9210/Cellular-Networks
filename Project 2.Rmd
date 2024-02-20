@@ -1,0 +1,254 @@
+---
+title: "Project 2"
+author: "Nicholas Ilvento"
+date: '2022-12-06'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(mosaic)
+library(DescTools)
+library(binom)
+library(boot)
+library(TeachingDemos)
+library(exactci)
+library(PropCIs)
+library(XNomial)
+library(EMT)
+library(readxl)
+library(SciViews)
+library(epitools)
+library(perm)
+library(combinat)
+library(purrr)
+library(MonteCarlo)
+library(survival)
+library(survminer)
+library(car)
+library(MASS)
+```
+
+```{r}
+telco=read_excel("C:/Users/nicki/OneDrive/Documents/School/R/MA-460/Telco.xlsx")
+telco
+```
+
+```{r}
+favstats(telco$age)
+favstats(telco$income)
+favstats(telco$employ)
+```
+
+```{r}
+mean_vec=c(mean(telco$age),mean(telco$income),mean(telco$employ))
+sd_vec=c(sd(telco$age),sd(telco$income),sd(telco$employ))
+median_vec=c(median(telco$age),median(telco$income),median(telco$employ))
+max_vec=c(max(telco$age),max(telco$income),max(telco$employ))
+min_vec=c(min(telco$age),min(telco$income),min(telco$employ))
+stat_data=matrix(data=c(mean_vec,sd_vec,median_vec,max_vec,min_vec),nrow=3,ncol=5)
+colnames(stat_data)=c("mean","sd","median","max","min")
+rownames(stat_data)=c("age","income","employ")
+stat_data
+```
+
+```{r}
+age_churn=c()
+income_churn=c()
+employ_churn=c()
+for(i in 1:length(telco$age)){
+  if(telco$churn[i]=="1"){
+    age_churn=c(age_churn,telco$age[i])
+    income_churn=c(income_churn,telco$income[i])
+    employ_churn=c(employ_churn,telco$employ[i])
+  }
+}
+mean_vec=c(mean(age_churn),mean(income_churn),mean(employ_churn))
+sd_vec=c(sd(age_churn),sd(income_churn),sd(employ_churn))
+median_vec=c(median(age_churn),median(income_churn),median(employ_churn))
+max_vec=c(max(age_churn),max(income_churn),max(employ_churn))
+min_vec=c(min(age_churn),min(income_churn),min(employ_churn))
+stat_data_churn=matrix(data=c(mean_vec,sd_vec,median_vec,max_vec,min_vec),nrow=3,ncol=5)
+colnames(stat_data_churn)=c("mean","sd","median","max","min")
+rownames(stat_data_churn)=c("age","income","employ")
+stat_data_churn
+```
+```{r}
+count(telco$churn=="1")
+```
+
+```{r}
+cor(telco$age,telco$income)
+cor(telco$age,telco$employ)
+cor(telco$income,telco$employ)
+```
+
+```{r}
+box_plot_data=data.frame(income=telco$income,age=telco$age,employ=telco$employ)
+```
+
+```{r}
+boxplot(box_plot_data$age,box_plot_data$employ)
+```
+
+```{r}
+count(telco$marital==0) #unmarried?
+count(telco$marital==1) #married?
+```
+
+```{r}
+count(telco$gender==0) #male?
+count(telco$gender==1) #female?
+```
+
+```{r}
+hist(telco$marital,xlab="Marital Status",ylab="Count",main="Histogram of Marital Status",breaks=c(0,0.5,1))
+hist(telco$gender,xlab="Gender",ylab="Count",main="Histogram of Gender",breaks=c(0,0.5,1))
+```
+
+```{r}
+telco$marital_cat=c(rep(0,length(telco$marital)))
+telco$gender_cat=c(rep(0,length(telco$gender)))
+for(i in 1:length(telco$marital)){
+  if(telco$marital[i]==0){
+    telco$marital_cat[i]="unmarried"
+  }
+  else(telco$marital_cat[i]="married")
+  if(telco$gender[i]==0){
+    telco$gender_cat[i]="male"
+  }
+  else(telco$gender_cat[i]="female")
+}
+```
+
+```{r}
+Gender=telco$gender
+Marital_Status=telco$marital
+ggplot(data.frame(telco),aes(x=Marital_Status))+geom_bar()
+ggplot(data.frame(telco),aes(x=Gender))+geom_bar()
+```
+
+```{r}
+gender_churn=table(telco$churn,telco$gender)
+gender_churn_total=table(telco$churn,telco$gender)
+gender_churn_total=rbind(gender_churn_total,c(colSums(gender_churn_total)))
+gender_churn_total=cbind(gender_churn_total,c(rowSums(gender_churn_total)))
+rownames(gender_churn_total)=c("no churn","churn","TOTAL")
+colnames(gender_churn_total)=c("male","female","TOTAL")
+gender_churn_total
+```
+
+```{r}
+marital_churn=table(telco$churn,telco$marital)
+marital_churn_total=table(telco$churn,telco$marital)
+marital_churn_total=rbind(marital_churn_total,c(colSums(marital_churn_total)))
+marital_churn_total=cbind(marital_churn_total,c(rowSums(marital_churn_total)))
+rownames(marital_churn_total)=c("no churn","churn","TOTAL")
+colnames(marital_churn_total)=c("unmarried","married","TOTAL")
+marital_churn_total
+```
+
+##patterns
+Females churn more. Unmarried people churn more. 125/500 = 1/4 of people churn.
+
+##statistically significant association
+```{r}
+chisq.test(x=telco$gender,y=telco$churn)
+chisq.test(x=telco$marital,y=telco$churn)
+```
+
+```{r}
+chisq.test(gender_churn)
+chisq.test(marital_churn)
+```
+
+```{r}
+gender_marital=table(telco$marital,telco$gender)
+gender_marital_total=table(telco$marital,telco$gender)
+gender_marital_total=rbind(gender_marital_total,c(colSums(gender_marital_total)))
+gender_marital_total=cbind(gender_marital_total,c(rowSums(gender_marital_total)))
+rownames(gender_marital_total)=c("unmarried","married","TOTAL")
+colnames(gender_marital_total)=c("male","female","TOTAL")
+gender_marital_total
+chisq.test(gender_marital)
+```
+
+```{r}
+unmarried_female_churn=0
+unmarried_male_churn=0
+married_female_churn=0
+married_male_churn=0
+for(i in 1:length(telco$churn)){
+  if(telco$churn[i]==1&&telco$gender[i]==1&&telco$marital[i]==0){
+    unmarried_female_churn=unmarried_female_churn+1
+  }
+  if(telco$churn[i]==1&&telco$gender[i]==0&&telco$marital[i]==0){
+    unmarried_male_churn=unmarried_male_churn+1
+  }
+  if(telco$churn[i]==1&&telco$gender[i]==1&&telco$marital[i]==1){
+    married_female_churn=married_female_churn+1
+  }
+  if(telco$churn[i]==1&&telco$gender[i]==0&&telco$marital[i]==1){
+    married_male_churn=married_male_churn+1
+  }
+}
+unmarried_female_churn
+unmarried_male_churn
+married_female_churn
+married_male_churn
+```
+
+```{r}
+model=survfit(Surv(tenure,churn)~1,data=telco)
+plot(model,lty=1:4,xlab="Time",ylab="Survival Prob",ylim=c(0,1))
+```
+
+```{r}
+model=survfit(Surv(tenure,churn)~gender,data=telco)
+plot(model,lty=1:4,xlab="Time",ylab="Survival Prob",ylim=c(0,1))
+legend(50,0.95,legend=c("male","female"),lty=1:2,cex=0.8)
+```
+
+```{r}
+survdiff(Surv(tenure,churn)~gender,data=telco)
+```
+
+Ho: The different levels are proportional
+Ha: The different levels are not proportional
+```{r}
+pairwise_survdiff(Surv(tenure,churn)~gender,data=telco,p.adjust.method="bonferroni")
+```
+With a p-value of 0.75, we do not have enough evidence to reject the claim that the two levels are proportional with each other.
+
+```{r}
+model=survfit(Surv(tenure,churn)~marital,data=telco)
+plot(model,lty=1:4,xlab="Time",ylab="Survival Prob",ylim=c(0,1))
+legend(55,0.95,legend=c("unmarried","married"),lty=1:2,cex=0.8)
+```
+
+```{r}
+survdiff(Surv(tenure,churn)~marital,data=telco)
+```
+
+Ho: The different levels are proportional
+Ha: The different levels are not proportional
+```{r}
+pairwise_survdiff(Surv(tenure,churn)~marital,data=telco,p.adjust.method="bonferroni")
+```
+With a p-value of 0.043, we have enough evidence to reject the null of proportional hazards and say that the two levels are not proportional with each other.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
